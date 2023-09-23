@@ -11,30 +11,43 @@ use Illuminate\Support\Facades\Route;
 class RouteServiceProvider extends ServiceProvider
 {
     /**
-     * The path to your application's "home" route.
+     * Define your route model bindings, pattern filters, etc.
      *
-     * Typically, users are redirected here after authentication.
-     *
-     * @var string
+     * @return void
      */
-    public const HOME = '/home';
+    public function boot()
+    {
+        $this->configureRateLimiting();
+
+        $this->routes(
+            function () {
+                Route::get(
+                    '/status',
+                    function () {
+                        return response()->json(
+                            [
+                                'status' => 'ok',
+                                'time' => microtime(true) - LARAVEL_START
+                            ]
+                        );
+                    }
+                );
+            }
+        );
+    }
 
     /**
-     * Define your route model bindings, pattern filters, and other route configuration.
+     * Configure the rate limiters for the application.
+     *
+     * @return void
      */
-    public function boot(): void
+    protected function configureRateLimiting()
     {
-        RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
-        });
-
-        $this->routes(function () {
-            Route::middleware('api')
-                ->prefix('api')
-                ->group(base_path('routes/api.php'));
-
-            Route::middleware('web')
-                ->group(base_path('routes/web.php'));
-        });
+        RateLimiter::for(
+            'api',
+            function (Request $request) {
+                return Limit::perMinute(60)->by(optional($request->user())->id ?: $request->ip());
+            }
+        );
     }
 }
